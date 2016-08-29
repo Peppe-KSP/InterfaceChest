@@ -16,7 +16,7 @@ local idleDraw = 500
 local beltBalancerThrottle = 12
 
 -- Internal Use
-local dataVersion = 13
+local dataVersion = 14
 
 -- How many a chest can pull from a belt lane 0-8
 local inputMultiplier = 8
@@ -65,7 +65,7 @@ function InterfaceChest_Initialize()
 	if global.InterfaceChest_DataVersion == nil then
 		global.InterfaceChest_DataVersion = 0
 	end
-	
+
 	if global.InterfaceBelt_MasterList == nil then
 		global.InterfaceBelt_MasterList = {}
 	end
@@ -76,15 +76,15 @@ function InterfaceChest_Initialize()
 end
 
 -------------------
-function getKey (position)
-	return "if_x" .. position.x .. "y".. position.y
+function getKey (entity)
+	return "if_x" .. entity.position.x .. "y".. entity.position.y .. entity.surface.index
 end
 
 function InterfaceChest_Create(event)
 	local entity = event.created_entity
 	if isInterfaceChest(entity) then
 		local modTick = game.tick % chestThrottle
-		local key = getKey(entity.position)
+		local key = getKey(entity)
 		if global.InterfaceChest_MasterList[modTick] == nil then
 			global.InterfaceChest_MasterList[modTick] = {}
 		end
@@ -93,7 +93,7 @@ function InterfaceChest_Create(event)
 	end
 
 	if entity.name == "interface-belt-balancer" then
-		local key = getKey(entity.position)
+		local key = getKey(entity)
 		local modTick = game.tick % beltBalancerThrottle
 		if global.InterfaceBelt_MasterList[modTick] == nil then
 			global.InterfaceBelt_MasterList[modTick] = {}
@@ -130,8 +130,8 @@ function scheduleUpdate (entity, range)
 			local chest = entities[index]
 			if chest and chest.valid then
 				for modTick=0, chestThrottle-1 do
-					if global.InterfaceChest_MasterList[modTick][getKey(chest.position)] then 
-						global.InterfaceChest_MasterList[modTick][getKey(chest.position)].dirty = true 
+					if global.InterfaceChest_MasterList[modTick][getKey(chest)] then 
+						global.InterfaceChest_MasterList[modTick][getKey(chest)].dirty = true 
 					end
 				end
 			end
@@ -155,7 +155,7 @@ function InterfaceBelt_RunStep()
 		for index=1, #beltBalancer do
 			local entity = beltBalancer[index]
 			local modTick = math.random(beltBalancerThrottle) - 1
-			masterList[modTick][getKey(entity.position)] = entity
+			masterList[modTick][getKey(entity)] = entity
 		end
 
 		global.InterfaceBelt_MasterList = masterList
@@ -212,8 +212,17 @@ function InterfaceChest_RunStep(event)
 		InterfaceChest_Initialize()
 
 		-- Find all this mod's chests and index them
-		local trashCan = game.surfaces[1].find_entities_filtered{area={{-10000, -10000},{10000, 10000}}, name="interface-chest-trash"}
-		local interfaceChests = game.surfaces[1].find_entities_filtered{area={{-10000, -10000},{10000, 10000}}, name="interface-chest"}
+		trashCan = {}
+		for index=1,#game.surfaces do
+			local temp = game.surfaces[index].find_entities_filtered{area={{-10000, -10000},{10000, 10000}}, name="interface-chest-trash"}
+			for k,v in pairs(temp) do table.insert(trashCan, v) end
+		end
+
+		interfaceChests = {}
+		for index=1,#game.surfaces do
+			local temp = game.surfaces[index].find_entities_filtered{area={{-10000, -10000},{10000, 10000}}, name="interface-chest"}
+			for k,v in pairs(temp) do table.insert(interfaceChests, v) end
+		end
 
 		local masterList = {}
 		for index=0, chestThrottle-1 do
@@ -223,13 +232,13 @@ function InterfaceChest_RunStep(event)
 		for index=1, #trashCan do
 			local modTick = math.random(chestThrottle) - 1
 			local chest = trashCan[index]
-			masterList[modTick][getKey(chest.position)] = updateInterfaceChest(chest)
+			masterList[modTick][getKey(chest)] = updateInterfaceChest(chest)
 		end
 
 		for index=1, #interfaceChests do
 			local modTick = math.random(chestThrottle) - 1
 			local chest = interfaceChests[index]
-			masterList[modTick][getKey(chest.position)] = updateInterfaceChest(chest)
+			masterList[modTick][getKey(chest)] = updateInterfaceChest(chest)
 		end
 
 		global.InterfaceChest_MasterList = masterList
